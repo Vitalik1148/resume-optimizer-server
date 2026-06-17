@@ -1,0 +1,57 @@
+services:
+  - type: web
+    name: resume-optimizer-server
+    runtime: node
+    plan: free
+    region: frankfurt
+    buildCommand: npm ci
+    startCommand: npm start
+    healthCheckPath: /
+    autoDeploy: true
+    envVars:
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      - key: LLM_API_KEY
+        sync: false
+      - key: LLM_ENDPOINT
+        sync: false
+      - key: LLM_MODEL
+        sync: false
+      - key: LLM_FALLBACK_API_KEY
+        sync: false
+      - key: LLM_FALLBACK_ENDPOINT
+        sync: false
+      - key: LLM_FALLBACK_MODEL
+        sync: false
+      - key: LLM_EMERGENCY_API_KEY
+        sync: false
+      - key: LLM_EMERGENCY_ENDPOINT
+        sync: false
+      - key: LLM_EMERGENCY_MODEL
+        sync: false
+      - key: LLM_RESPONSE_FORMAT
+        sync: false
+      - key: LLM_REQUEST_RETRIES
+        sync: false
+      - key: OPT_MAX_ATTEMPTS
+        sync: false
+      - key: OPT_MIN_AUDIT_SCORE
+        sync: false
+      - key: OPT_TEMPERATURE
+        sync: false
+      - key: ADMIN_EMAILS
+        sync: false
+      - key: HH_USER_AGENT
+        sync: false
+      - key: ALLOWED_ORIGINS
+        sync: false
+      - key: JOB_TEXT_ALLOWED_HOSTS
+        sync: false
+      - key: RATE_LIMIT_WINDOW_SECONDS
+        sync: false
+      - key: JOB_TEXT_RATE_LIMIT
+        sync: false
+      - key: OPTIMIZE_RATE_LIMIT
+        sync: false
