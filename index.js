@@ -217,6 +217,32 @@ function sanitizeText(value, fallback = '') {
     return text || fallback;
 }
 
+function hasCyrillicText(value) {
+    return /[\u0400-\u04FF]/.test(String(value || ''));
+}
+
+function buildRussianAuditFeedback(feedback) {
+    const cleanFeedback = sanitizeText(feedback).slice(0, 700);
+    if (!cleanFeedback) return '';
+    if (hasCyrillicText(cleanFeedback)) return cleanFeedback;
+
+    const lower = cleanFeedback.toLowerCase();
+    if (lower.includes('critical mismatch') || lower.includes('mismatch') || lower.includes('not qualified')) {
+        return 'Критическое несоответствие: требования вакансии сильно расходятся с исходным резюме. Без добавления неподтвержденного опыта или навыков нельзя безопасно довести оптимизированную версию до проходного score.';
+    }
+    if (lower.includes('hallucination') || lower.includes('fabricat') || lower.includes('invent')) {
+        return 'Аудит нашел неподтвержденные добавления: в оптимизированной версии появились навыки, опыт или достижения, которых нет в исходном резюме.';
+    }
+    if (lower.includes('unsupported') || lower.includes('not present') || lower.includes('zero mention')) {
+        return 'Аудит отклонил оптимизацию, потому что часть требований вакансии не подтверждается исходным резюме.';
+    }
+    if (lower.includes('generic') || lower.includes('robotic') || lower.includes('ai-sounding')) {
+        return 'Аудит отклонил оптимизацию из-за слишком общего или неестественного текста. Нужно переписать формулировки ближе к фактам из резюме.';
+    }
+
+    return 'Аудит отклонил оптимизацию: результат не набрал проходной score и требует правок по соответствию вакансии и фактам исходного резюме.';
+}
+
 function extractAvatarFileNameFromUrl(imageUrl) {
     if (!imageUrl || typeof imageUrl !== 'string') return '';
     const trimmedUrl = imageUrl.trim();
@@ -374,7 +400,7 @@ function countOptimizationJobsByStatus(status) {
 
 function buildAuditFailureMessage(score, threshold, feedback) {
     const scoreText = score === null || score === undefined ? 'не удалось получить' : `${score}/${threshold}`;
-    const feedbackText = sanitizeText(feedback).slice(0, 700);
+    const feedbackText = buildRussianAuditFeedback(feedback);
     return feedbackText
         ? `Оптимизация не сохранена: аудит дал score ${scoreText}. Причина: ${feedbackText}`
         : `Оптимизация не сохранена: аудит дал score ${scoreText}, ниже порога ${threshold}.`;
@@ -549,6 +575,7 @@ CHECK FOR:
 3. ATS MATCH: Are key requirements from the job included?
 
 Return JSON: { "score": number, "passed": boolean, "feedback": "Specific advice on what to fix" }
+The feedback value MUST be written in Russian only. Do not use English in feedback.
 Set 'passed' to true ONLY if score >= 85.
 `;
 
@@ -1127,7 +1154,8 @@ async function processOptimization(resumeId, jobText, options = {}) {
                 break;
             }
 
-            lastAuditFeedback = auditResult.feedback || `Audit score ${auditResult.score}; remove unsupported additions and keep only original facts.`;
+            lastAuditFeedback = buildRussianAuditFeedback(auditResult.feedback)
+                || `Оценка аудита ${auditResult.score}; уберите неподтвержденные добавления и оставьте только факты из исходного резюме.`;
 
             // Если последняя попытка — не продолжаем
             if (attempt >= MAX_ATTEMPTS) {
@@ -1138,7 +1166,7 @@ async function processOptimization(resumeId, jobText, options = {}) {
         // --- СОХРАНЕНИЕ В SUPABASE (только если аудит пройден) ---
         if (!optimized || !auditPassed) {
             const bestScore = bestAuditResult?.score ?? auditResult?.score ?? null;
-            const auditFeedback = bestAuditResult?.feedback || auditResult?.feedback || lastAuditFeedback || '';
+            const auditFeedback = buildRussianAuditFeedback(bestAuditResult?.feedback || auditResult?.feedback || lastAuditFeedback || '');
             const failureMessage = buildAuditFailureMessage(bestScore, MIN_AUDIT_SCORE, auditFeedback);
             console.error(`[OPT] ✗ No optimization passed audit after ${attempt} attempt(s). Best score: ${bestScore ?? 'n/a'}. Aborting save. ${auditFeedback ? `Feedback: ${auditFeedback}` : ''}`);
             updateJobRecord(jobId, {
